@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Rialo Snake Game</title>
+<style>
+  body { margin:0; padding:0; background:#87CEEB; display:flex; justify-content:center; align-items:center; height:100vh; }
+  canvas { border:2px solid #000; background:#f0f8ff; }
+  button { font-size:20px; padding:10px 20px; margin-top:10px; display:none; }
+</style>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+</head>
+<body>
+<button id="retryButton">Retry</button>
+<script>
+let config = {
+    type: Phaser.AUTO,
+    width: 800,
+    height: 600,
+    backgroundColor: 0xf0f8ff,
+    scene: { preload, create, update },
+    physics: { default: 'arcade' }
+};
+
+let game = new Phaser.Game(config);
+
+let snake = [];
+let cursors;
+let direction = 'RIGHT';
+let moveTimer = 0;
+let moveDelay = 150;
+let score = 0;
+let scoreText;
+let letters;
+let letterSize = 32;
+
+function preload() {}
+
+function create() {
+    // Snake initial segment
+    let startX = 400, startY = 300;
+    let segment = this.add.rectangle(startX, startY, letterSize, letterSize, 0x00ff00);
+    snake.push(segment);
+
+    // Letters group
+    letters = this.add.group();
+    spawnLetter(this);
+
+    // Input
+    cursors = this.input.keyboard.createCursorKeys();
+
+    // Score
+    scoreText = this.add.text(16,16,'Score: 0',{ fontSize:'24px', fill:'#000' });
+
+    // Retry button
+    let retryBtn = document.getElementById('retryButton');
+    retryBtn.addEventListener('click', () => {
+        location.reload();
+    });
+}
+
+function update(time, delta) {
+    if (!snake[0]) return;
+
+    // Change direction
+    if (cursors.left.isDown && direction !== 'RIGHT') direction = 'LEFT';
+    else if (cursors.right.isDown && direction !== 'LEFT') direction = 'RIGHT';
+    else if (cursors.up.isDown && direction !== 'DOWN') direction = 'UP';
+    else if (cursors.down.isDown && direction !== 'UP') direction = 'DOWN';
+
+    moveTimer += delta;
+    if (moveTimer > moveDelay) {
+        moveSnake(this);
+        moveTimer = 0;
+    }
+}
+
+function moveSnake(scene) {
+    let head = snake[0];
+    let newX = head.x;
+    let newY = head.y;
+
+    if (direction === 'LEFT') newX -= letterSize;
+    if (direction === 'RIGHT') newX += letterSize;
+    if (direction === 'UP') newY -= letterSize;
+    if (direction === 'DOWN') newY += letterSize;
+
+    // Wall collision
+    if (newX < 0 || newX >= 800 || newY < 0 || newY >= 600) {
+        gameOver();
+        return;
+    }
+
+    // Self collision
+    for (let i=0; i<snake.length; i++){
+        if(snake[i].x === newX && snake[i].y === newY){
+            gameOver();
+            return;
+        }
+    }
+
+    // Move snake
+    let tail = snake.pop();
+    tail.x = newX;
+    tail.y = newY;
+    snake.unshift(tail);
+
+    // Check collision with letters
+    letters.getChildren().forEach(letter=>{
+        if(Phaser.Math.Distance.Between(letter.x,letter.y,newX,newY)<letterSize/2){
+            letter.destroy();
+            growSnake(scene);
+            score += 10;
+            scoreText.setText('Score: ' + score);
+            spawnLetter(scene);
+        }
+    });
+}
+
+function growSnake(scene){
+    let last = snake[snake.length-1];
+    let newSegment = scene.add.rectangle(last.x, last.y, letterSize, letterSize, 0x00ff00);
+    snake.push(newSegment);
+}
+
+function spawnLetter(scene){
+    let lettersArray = ['R','I','A','L','O'];
+    let randomLetter = lettersArray[Phaser.Math.Between(0, lettersArray.length-1)];
+    let x = Phaser.Math.Between(0, Math.floor(800/letterSize)-1) * letterSize + letterSize/2;
+    let y = Phaser.Math.Between(0, Math.floor(600/letterSize)-1) * letterSize + letterSize/2;
+    let letter = scene.add.text(x, y, randomLetter, { fontSize:'32px', fill:'#ff0000' }).setOrigin(0.5);
+    letters.add(letter);
+}
+
+function gameOver(){
+    // Stop snake movement
+    snake[0] = null;
+    scoreText.setText('Game Over! Score: ' + score);
+    // Show retry button
+    let retryBtn = document.getElementById('retryButton');
+    retryBtn.style.display = 'block';
+}
+</script>
+</body>
+</html>
